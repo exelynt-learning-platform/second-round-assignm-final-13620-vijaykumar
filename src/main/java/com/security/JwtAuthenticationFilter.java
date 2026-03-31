@@ -17,7 +17,6 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 import com.entity.User;
 import com.repository.UserRepository;
 import com.service.JwtService;
-import com.service.TokenBlacklistService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,22 +31,15 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-	@Autowired
-	private UserRepository userRepository;
+	private final UserRepository userRepository;
 
 	@Autowired
 	private final JwtService jwtService;
 
-	@Autowired
 	private final UserDetailsService userDetailsService;
 	
-	@Autowired
-    private final TokenBlacklistService blacklistService;
-	
-	@Autowired
 	private final HandlerExceptionResolver handlerExceptionResolver;
 
-	// Create USer -> Bearer Token Request ->
 	@Override
 	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
 			@NonNull FilterChain filterChain) throws ServletException, IOException, java.io.IOException {
@@ -71,7 +63,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			Authentication authentication = SecurityContextHolder.getContext().getAuthentication(); // Tocken is saved
 																									// here on server
 																									// side
-		//    blacklistService.isTokenBlacklisted(userEmail);
 			if (userEmail != null && authentication == null) {
 				log.info("No existing authentication header");
 				UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
@@ -88,7 +79,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 					log.warn("Token has expired");
 					User user = userRepository.findByEmail(userEmail)
 							.orElseThrow(() -> new UsernameNotFoundException(userEmail));
-					// user.setBlacklisted(true);
 					userRepository.save(user);
 				}
 			}

@@ -1,10 +1,8 @@
 package com.serviceimpl;
 
 import java.time.Instant;
-import java.util.List;
 
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -22,31 +20,27 @@ import com.exceptions.ResourceFoundException;
 import com.exceptions.ResourceNotFoundException;
 import com.repository.RoleRepository;
 import com.repository.UserRepository;
-import com.security.CustomUserDetails;
 import com.service.AuthService;
 import com.service.JwtService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @Service
 @Slf4j
 public class AuthServiceImpl implements AuthService{
 	
-	@Autowired
-	private UserRepository userRepository;
+	private final UserRepository userRepository;
 	
-	@Autowired
-	private RoleRepository roleRepository;
+	private final RoleRepository roleRepository;
 	
-	@Autowired
-	private BCryptPasswordEncoder passwordEncoder;
+	private final BCryptPasswordEncoder passwordEncoder;
 	
-	@Autowired
-	private AuthenticationManager authenticationManager;
+	private final AuthenticationManager authenticationManager;
 	
-	@Autowired
-	private JwtService jwtService;
+	private final JwtService jwtService;
 	
 	@Override
 	public RegisterResponse registerUser(@Valid RegisterRequest registerRequest) {

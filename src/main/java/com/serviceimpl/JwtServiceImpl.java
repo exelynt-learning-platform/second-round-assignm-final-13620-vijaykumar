@@ -27,6 +27,7 @@ public class JwtServiceImpl implements JwtService{
 	
 	@Value("${jwt.secret}")
 	private String secretKey;
+	
 
 	@Value("${jwt.expiration-time}")
 	private long jwtExpiration;
@@ -39,12 +40,25 @@ public class JwtServiceImpl implements JwtService{
 
 	@Override
 	public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-		if (claimsResolver == null) {
-			log.warn("Claims resolver is null");
-			return null;
-		}
-		final Claims claims = extractAllClaims(token);
-		return claimsResolver.apply(claims);
+
+	    if (claimsResolver == null) {
+	        log.warn("Claims resolver is null");
+	        throw new IllegalArgumentException("Claims resolver cannot be null");
+	    }
+
+	    try {
+	        Claims claims = extractAllClaims(token);
+
+	        if (claims == null) {
+	            throw new RuntimeException("Claims extraction failed");
+	        }
+
+	        return claimsResolver.apply(claims);
+
+	    } catch (Exception e) {
+	        log.error("Error extracting claim from token", e);
+	        throw new RuntimeException("Invalid JWT token");
+	    }
 	}
 
 	@Override

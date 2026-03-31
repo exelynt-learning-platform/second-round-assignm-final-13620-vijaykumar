@@ -1,7 +1,5 @@
 package com.serviceimpl;
 
-import java.util.*;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -50,6 +48,10 @@ public class PaymentServiceImpl implements PaymentService {
                             .setMode(SessionCreateParams.Mode.PAYMENT)
                             .setSuccessUrl(successUrl + "?session_id={CHECKOUT_SESSION_ID}")
                             .setCancelUrl(cancelUrl)
+
+                            //STORE ORDER ID
+                            .putMetadata("orderId", order.getId().toString())
+
                             .addLineItem(
                                     SessionCreateParams.LineItem.builder()
                                             .setQuantity(1L)
@@ -75,6 +77,7 @@ public class PaymentServiceImpl implements PaymentService {
             return session.getUrl();
 
         } catch (Exception e) {
+            log.error("Stripe session creation failed", e);
             throw new RuntimeException("Error creating payment session");
         }
     }
@@ -92,14 +95,27 @@ public class PaymentServiceImpl implements PaymentService {
             throw new ResourceNotFoundException("Invalid or expired payment session");
         }
 
-        List<Order> orders = orderRepository.findAll();
+        String orderIdStr = session.getMetadata().get("orderId");
 
-        for (Order order : orders) {
-            if (order.getPaymentStatus() == PaymentStatus.PENDING) {
-                order.setPaymentStatus(PaymentStatus.PAID);
-                orderRepository.save(order);
-            }
+        if (orderIdStr == null) {
+            throw new RuntimeException("Order ID missing in Stripe session");
         }
+
+        Long orderId = Long.parseLong(orderIdStr);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return "Order already paid";
+        }
+
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setPaymentId(sessionId);
+
+        orderRepository.save(order);
+
+        log.info("Payment successful for order: {}", orderId);
 
         return "Payment successful";
     }

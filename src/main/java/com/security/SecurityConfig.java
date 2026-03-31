@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -11,6 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SecurityConfig {
 
     private final AuthenticationProvider authenticationProvider;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter; // ✅ added
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -32,23 +34,55 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
 
             .cors(cors -> cors.configurationSource(request -> {
-                var config = new org.springframework.web.cors.CorsConfiguration();
-                config.setAllowedOrigins(List.of("*")); // change in production
-                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                config.setAllowedHeaders(List.of("*"));
+                CorsConfiguration config = new CorsConfiguration();
+
+                config.setAllowedOrigins(List.of(
+                        "http://localhost:3000",   
+                        "http://localhost:4200"    
+                ));
+
+                config.setAllowedMethods(List.of(
+                        "GET", "POST", "PUT", "DELETE", "OPTIONS"
+                ));
+
+                config.setAllowedHeaders(List.of(
+                        "Authorization",
+                        "Content-Type"
+                ));
+
+                config.setAllowCredentials(true);
+
                 return config;
             }))
 
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/api/auth/**", "/api/users/**"
-                    		,"/api/products", "/api/cart", "/api/orders")
-                    .permitAll()
-                    .requestMatchers("/api/v1/admin/**").authenticated()
+                    .requestMatchers(
+                            "/v3/api-docs/**",
+                            "/swagger-ui/**",
+                            "/api/auth/**"
+                    ).permitAll()
+
+                    .requestMatchers(
+                            "/api/users/**",
+                            "/api/cart/**",
+                            "/api/orders/**",
+                            "/api/payment/**"
+                    ).authenticated()
+
+                    .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+
+                    .requestMatchers(
+                    		"/api/users/**",
+                            "/api/cart/**",
+                            "/api/orders/**",
+                            "/api/products/**"
+                    ).hasRole("ADMIN")
+
                     .anyRequest().authenticated()
             )
 
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            .sessionManagement(session ->
+                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
 
             .authenticationProvider(authenticationProvider)

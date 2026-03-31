@@ -20,9 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RoleSeeder implements ApplicationListener<ContextRefreshedEvent>{
 
-	//@Autowired  = 1️ Do NOT Use @Autowired With @RequiredArgsConstructor
-	//This is wrong usage. 
-	//@RequiredArgsConstructor already creates constructor injection.
 	private final RoleRepository rr;
 	
 	@Override
@@ -42,7 +39,6 @@ public class RoleSeeder implements ApplicationListener<ContextRefreshedEvent>{
 		);
 
 		
-		//Java 11 Style
 		for (RoleEnum roleEnum : RoleEnum.values()) {
 
             if (rr.findByRolename(roleEnum).isEmpty()) {

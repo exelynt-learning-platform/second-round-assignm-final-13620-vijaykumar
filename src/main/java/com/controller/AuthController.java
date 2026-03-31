@@ -1,7 +1,6 @@
 package com.controller;
 
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,16 +17,17 @@ import com.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @RestController
 @Slf4j
 @Tag(name = "Authentication APIS", description = "All APIS Are related to Authentication")
 @RequestMapping("/api/auth")
 public class AuthController {
 
-	@Autowired
-	private AuthService authService;
+	private final AuthService authService;
 
 	@Operation(summary = "Register a new user", description = "Registers a new user with the provided details.")
 	@PostMapping("/registerUser")
@@ -50,12 +50,14 @@ public class AuthController {
 
 	@Operation(summary = "Create an administrator", description = "Creates a new administrator user. Requires SUPER_ADMIN role.")
 	@PostMapping("/createAdministrator")
-	public ResponseEntity<RegisterResponse> createAdministrator(@RequestBody @Valid RegisterRequest registerRequest) {
-		
-		log.debug("createAdministrator({})", registerRequest.getEmail());
-		
-		return ResponseEntity.status(HttpStatus.OK).body(authService.createAdministrator(registerRequest));
+	public ResponseEntity<RegisterResponse> createAdministrator(
+	        @RequestBody @Valid RegisterRequest registerRequest) {
 
+	    log.debug("createAdministrator({})", registerRequest.getEmail());
+
+	    return ResponseEntity
+	            .status(HttpStatus.CREATED)
+	            .body(authService.createAdministrator(registerRequest));
 	}
 
 }

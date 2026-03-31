@@ -36,24 +36,30 @@ public class CartServiceImpl implements CartService {
     @Autowired
     private UserRepository userRepository;
 
+    // ✅ GET CURRENT USER
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
+    // ✅ ADD TO CART
     @Override
     public Cart addToCart(CartItemRequest request) {
 
         log.debug("addToCart()");
 
+        if (request.getQuantity() <= 0) {
+            throw new RuntimeException("Quantity must be greater than 0");
+        }
+
         User user = getCurrentUser();
 
-		Cart cart = cartRepository.findByUser(user).orElseGet(() -> {
-			Cart newCart = new Cart();
-			newCart.setUser(user);
-			return cartRepository.save(newCart);
-		});
+        Cart cart = cartRepository.findByUser(user).orElseGet(() -> {
+            Cart newCart = new Cart();
+            newCart.setUser(user);
+            return cartRepository.save(newCart);
+        });
 
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
@@ -62,15 +68,24 @@ public class CartServiceImpl implements CartService {
                 cartItemRepository.findByCartAndProduct(cart, product);
 
         if (existingItem.isPresent()) {
+
             CartItem item = existingItem.get();
             item.setQuantity(item.getQuantity() + request.getQuantity());
+
+            // ✅ Always keep unit price
+            item.setPrice(product.getPrice());
+
             cartItemRepository.save(item);
+
         } else {
+
             CartItem item = new CartItem();
             item.setCart(cart);
             item.setProduct(product);
             item.setQuantity(request.getQuantity());
-            item.setPrice(product.getPrice() * item.getQuantity());
+
+            // ✅ FIX: store unit price only
+            item.setPrice(product.getPrice());
 
             cartItemRepository.save(item);
         }
@@ -82,10 +97,15 @@ public class CartServiceImpl implements CartService {
         return cart;
     }
 
+    // ✅ UPDATE CART
     @Override
     public Cart updateCart(CartItemRequest request) {
 
         log.debug("updateCart()");
+
+        if (request.getQuantity() <= 0) {
+            throw new RuntimeException("Quantity must be greater than 0");
+        }
 
         User user = getCurrentUser();
 
@@ -100,6 +120,9 @@ public class CartServiceImpl implements CartService {
 
         item.setQuantity(request.getQuantity());
 
+        // ✅ IMPORTANT: update unit price
+        item.setPrice(product.getPrice());
+
         cartItemRepository.save(item);
 
         updateTotal(cart);
@@ -107,6 +130,7 @@ public class CartServiceImpl implements CartService {
         return cart;
     }
 
+    // ✅ REMOVE ITEM
     @Override
     public void removeItem(Long itemId) {
 
@@ -115,11 +139,17 @@ public class CartServiceImpl implements CartService {
         CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
 
+        Cart cart = item.getCart();
+
         cartItemRepository.delete(item);
+
+        // ✅ IMPORTANT: recalculate total
+        updateTotal(cart);
 
         log.info("Item removed from cart");
     }
 
+    // ✅ VIEW CART
     @Override
     public Cart viewCart() {
 
@@ -131,6 +161,7 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found"));
     }
 
+    // ✅ CLEAR CART
     @Override
     public void clearCart() {
 
@@ -149,6 +180,7 @@ public class CartServiceImpl implements CartService {
         log.info("Cart cleared");
     }
 
+    // ✅ CALCULATE TOTAL
     private void updateTotal(Cart cart) {
 
         double total = cart.getItems()

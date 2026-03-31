@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,35 +17,37 @@ import com.exceptions.ResourceNotFoundException;
 import com.repository.*;
 import com.service.OrderService;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
-	@Autowired
-	private OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
+    private final CartRepository cartRepository;
+    private final UserRepository userRepository;
+    private final ProductRepository productRepository;
 
-	@Autowired
-	private CartRepository cartRepository;
+    private final ModelMapper modelMapper;
 
-	@Autowired
-	private UserRepository userRepository;
+    private User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
 
-	private User getCurrentUser() {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		return userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-	}
-
-	@Override
+    @Override
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
+
         log.debug("createOrder() started");
 
         User user = getCurrentUser();
 
         Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found"));
 
         if (cart.getItems().isEmpty()) {
             throw new RuntimeException("Cart is empty");
@@ -62,10 +63,17 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (CartItem cartItem : cart.getItems()) {
-            Product product = cartItem.getProduct();
+
+            Product product = productRepository.findById(cartItem.getProduct().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
             if (product.getStockQuantity() < cartItem.getQuantity()) {
                 throw new RuntimeException("Product " + product.getName() + " is out of stock");
             }
+
+            // ✅ STOCK UPDATE
+            product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
+            productRepository.save(product);
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
@@ -87,82 +95,59 @@ public class OrderServiceImpl implements OrderService {
         cart.setTotalPrice(0.0);
         cartRepository.save(cart);
 
-        OrderResponse orderResponse = new OrderResponse();
-        orderResponse.setId(savedOrder.getId());
-        orderResponse.setTotalAmount(savedOrder.getTotalAmount());
-        orderResponse.setShippingAddress(savedOrder.getShippingAddress());
-        orderResponse.setPaymentStatus(savedOrder.getPaymentStatus());
-        orderResponse.setOrderStatus(savedOrder.getOrderStatus());
-
         log.info("Order created with ID: {}", savedOrder.getId());
-        
-        return orderResponse;
+
+        return modelMapper.map(savedOrder, OrderResponse.class);
     }
 
-	@Override
-	public List<OrderResponse> getUserOrders() {
+    @Override
+    public List<OrderResponse> getUserOrders() {
 
-		log.debug("getUserOrders()");
+        log.debug("getUserOrders()");
 
-		User user = getCurrentUser();
+        User user = getCurrentUser();
 
-		List<Order> orders = orderRepository.findByUser(user);
+        return orderRepository.findByUser(user)
+                .stream()
+                .map(order -> modelMapper.map(order, OrderResponse.class))
+                .toList();
+    }
 
-		ModelMapper map = new ModelMapper();
+    @Override
+    public OrderResponse getOrderById(Long id) {
 
-		List<OrderResponse> response = orders.stream()
-				.map(order -> map.map(order, OrderResponse.class))
-				.toList();
+        log.debug("getOrderById()");
 
-		return response;
-	}
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-	@Override
-	public OrderResponse getOrderById(Long id) {
+        return modelMapper.map(order, OrderResponse.class);
+    }
 
-		log.debug("getOrderById()");
+    @Override
+    public List<OrderResponse> getAllOrders() {
 
-		Order order = orderRepository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        log.debug("getAllOrders()");
 
-		ModelMapper map = new ModelMapper();
+        return orderRepository.findAll()
+                .stream()
+                .map(order -> modelMapper.map(order, OrderResponse.class))
+                .toList();
+    }
 
-		return map.map(order, OrderResponse.class);
-	}
+    @Override
+    public OrderResponse updateOrderStatus(Long id, OrderStatus status) {
 
-	@Override
-	public List<OrderResponse> getAllOrders() {
+        log.debug("updateOrderStatus()");
 
-		log.debug("getAllOrders()");
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-		List<Order> orders = orderRepository.findAll();
+        order.setOrderStatus(status);
+        orderRepository.save(order);
 
-		ModelMapper map = new ModelMapper();
+        log.info("Order status updated: {}", status);
 
-		List<OrderResponse> response = orders.stream()
-				.map(order -> map.map(order, OrderResponse.class))
-				.toList();
-
-		return response;
-	}
-
-	@Override
-	public OrderResponse updateOrderStatus(Long id, OrderStatus status) {
-
-		log.debug("updateOrderStatus()");
-
-		Order order = orderRepository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Order not found"));
-
-		order.setOrderStatus(status);
-
-		orderRepository.save(order);
-
-		ModelMapper map = new ModelMapper();
-		OrderResponse orderResponse = map.map(order, OrderResponse.class);
-
-		log.info("Order status updated: {}", status);
-
-		return orderResponse;
-	}
+        return modelMapper.map(order, OrderResponse.class);
+    }
 }

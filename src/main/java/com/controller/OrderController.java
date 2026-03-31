@@ -2,7 +2,6 @@ package com.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,20 +9,20 @@ import org.springframework.web.bind.annotation.*;
 
 import com.dto.OrderRequest;
 import com.dto.OrderResponse;
-import com.entity.Order;
 import com.enums.OrderStatus;
 import com.service.OrderService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/orders")
 @Tag(name = "Order APIs", description = "Order management operations")
 public class OrderController {
 
-    @Autowired
-    private OrderService orderService;
+    private final OrderService orderService;
 
     @Operation(summary = "Create Order", description = "Create order from cart")
     @PostMapping("/create")

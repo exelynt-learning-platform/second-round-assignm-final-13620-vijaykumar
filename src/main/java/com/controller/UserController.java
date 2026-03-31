@@ -22,16 +22,17 @@ import com.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @RestController
 @Slf4j
 @RequestMapping("/api/users")
 @Tag(name = "User APIS", description = "All APIS Are related to User")
 public class UserController {
 
-	@Autowired
-	private UserService userService;
+	private final UserService userService;
 
 	@Operation(summary = "Get Authenticated User", description = "Retrieves the details of the currently authenticated user.")
 	@PreAuthorize("hasRole('USER')")

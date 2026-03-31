@@ -1,5 +1,6 @@
 package com.config;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -35,10 +36,7 @@ public class Appconfig {
 
 	@Bean
 	AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-		if (config == null) {
-			log.warn("Authentication configuration is null");
-		}
-		return config.getAuthenticationManager();
+	    return config.getAuthenticationManager();
 	}
 
 	@Bean
@@ -46,10 +44,14 @@ public class Appconfig {
 	    DaoAuthenticationProvider authProvider =
 	            new DaoAuthenticationProvider(userDetailsService());
 
-	//  authProvider.setUserDetailsService(userDetailsService());
 	    authProvider.setPasswordEncoder(passwordEncoder());
 
 	    return authProvider;
 	}
+	
+	 @Bean
+	    public ModelMapper modelMapper() {
+	        return new ModelMapper();
+	    }
 
 }
